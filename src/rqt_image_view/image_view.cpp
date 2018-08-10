@@ -59,6 +59,9 @@ void ImageView::initPlugin(qt_gui_cpp::PluginContext& context)
   widget_ = new QWidget();
   ui_.setupUi(widget_);
 
+  roi_started_ = false;//Initially roi is not started
+  published_image_ = false;
+
   if (context.serialNumber() > 1)
   {
     widget_->setWindowTitle(widget_->windowTitle() + " (" + QString::number(context.serialNumber()) + ")");
@@ -80,7 +83,16 @@ void ImageView::initPlugin(qt_gui_cpp::PluginContext& context)
   ui_.save_as_image_push_button->setIcon(QIcon::fromTheme("document-save-as"));
   connect(ui_.save_as_image_push_button, SIGNAL(pressed()), this, SLOT(saveImage()));
 
+  connect(ui_.roi_select_check_box,SIGNAL(toggled(bool)),ui_.image_frame,SLOT(roi_select_enabled(bool)));
+
   connect(ui_.num_gridlines_spin_box, SIGNAL(valueChanged(int)), this, SLOT(updateNumGridlines()));
+
+  connect(ui_.roi_select_check_box,SIGNAL(toggled(bool)),this,SLOT(roi_select_enabled(bool)));
+
+  connect(ui_.image_frame,SIGNAL(roi_selected(QRect)),this,SLOT(roiPublish(QRect)));
+
+  connect(ui_.image_frame,SIGNAL(roi_started()),this,SLOT(roiStarted()));
+
 
   // set topic name if passed in as argument
   const QStringList& argv = context.argv();
@@ -358,6 +370,45 @@ void ImageView::saveImage()
   img.save(file_name);
 }
 
+void ImageView::roi_select_enabled(bool checked)
+{
+   ros::NodeHandle &nh_ = getNodeHandle();
+   if(checked)
+   {
+       roi_publisher_ = nh_.advertise<sensor_msgs::RegionOfInterest>("roi", 1);
+       image_transport::ImageTransport it(getNodeHandle());
+       roi_img_publisher_ = it.advertise("roi_image",1);
+   }
+   else
+   {
+       roi_publisher_.shutdown();
+       roi_img_publisher_.shutdown();
+   }
+}
+
+void ImageView::roiPublish(QRect rect)
+{
+  if(roi_started_)
+  {
+    roi_started_ = false;
+    published_image_ = false;
+    QCheckBox * roi_select_check_box = ui_.roi_select_check_box;
+    if(roi_select_check_box->isChecked())
+    {
+      sensor_msgs::RegionOfInterest roi_msg;
+      roi_msg.x_offset = rect.left();
+      roi_msg.y_offset = rect.top();
+      roi_msg.width = rect.width();
+      roi_msg.height = rect.height();
+      roi_publisher_.publish(roi_msg);
+    }
+  }
+}
+
+void ImageView::roiStarted()
+{
+  roi_started_ = true;
+}
 void ImageView::onMousePublish(bool checked)
 {
   std::string topicName;
@@ -611,9 +662,23 @@ void ImageView::callbackImage(const sensor_msgs::Image::ConstPtr& msg)
       break;
   }
 
+
   // image must be copied since it uses the conversion_mat_ for storage which is asynchronously overwritten in the next callback invocation
-  QImage image(conversion_mat_.data, conversion_mat_.cols, conversion_mat_.rows, conversion_mat_.step[0], QImage::Format_RGB888);
-  ui_.image_frame->setImage(image);
+  if(!roi_started_)
+  {
+    QImage image(conversion_mat_.data, conversion_mat_.cols, conversion_mat_.rows, conversion_mat_.step[0], QImage::Format_RGB888);
+    ui_.image_frame->setImage(image);
+  }
+  else
+  {
+    if(!published_image_)
+    {
+      //Publish the image which is used for roi
+      cv_bridge::CvImagePtr cv_ptr = cv_bridge::toCvCopy(msg);
+      roi_img_publisher_.publish(cv_ptr->toImageMsg());//Give the same input image
+      published_image_ = true;
+    }
+  }
 
   if (!ui_.zoom_1_push_button->isEnabled())
   {

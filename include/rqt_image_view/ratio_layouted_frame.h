@@ -41,6 +41,7 @@
 #include <QPainter>
 #include <QRect>
 #include <QSize>
+#include <QMouseEvent>
 
 namespace rqt_image_view {
 
@@ -78,14 +79,23 @@ public:
 
   void setInnerFrameFixedSize(const QSize& size);
 
+  void mousePressEvent(QMouseEvent *event);
+
+  void mouseMoveEvent(QMouseEvent *event);
+
+  void mouseReleaseEvent(QMouseEvent *event);
+
 signals:
 
   void delayed_update();
+  void roi_selected(QRect rect);
+  void roi_started();
 
   void mouseLeft(int x, int y);
 
 protected slots:
 
+  void roi_select_enabled(bool checked);
   void onSmoothImageChanged(bool checked);
 
 protected:
@@ -98,8 +108,6 @@ private:
 
   static int greatestCommonDivisor(int a, int b);
 
-  void mousePressEvent(QMouseEvent * mouseEvent);
-
   QHBoxLayout* outer_layout_;
 
   QSize aspect_ratio_;
@@ -108,6 +116,14 @@ private:
   mutable QMutex qimage_mutex_;
 
   bool smoothImage_;
+  QRect roi_rect_;///< roi rectangle
+
+  bool drag_flag_;///< flag to set mouse is being dragged for ROI
+
+  bool image_freeze_;///< flag to check if image is frozen or not
+
+  bool roi_select_enabled_flag_;///< flag to set that roi selection is being carried out otherwise rectangle is not drawn and signal is not sent
+
 };
 
 }

@@ -41,6 +41,7 @@
 #include <ros/package.h>
 #include <ros/macros.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/RegionOfInterest.h>
 #include <geometry_msgs/Point.h>
 
 #include <opencv2/core/core.hpp>
@@ -51,6 +52,7 @@
 #include <QString>
 #include <QSize>
 #include <QWidget>
+#include <QCheckBox>
 
 #include <vector>
 
@@ -97,6 +99,12 @@ protected slots:
 
   virtual void saveImage();
 
+  virtual void roi_select_enabled(bool checked);
+
+  virtual void roiPublish(QRect rect);
+
+  virtual void roiStarted();
+
   virtual void updateNumGridlines();
 
   virtual void onMousePublish(bool checked);
@@ -125,6 +133,14 @@ protected:
   QWidget* widget_;
 
   image_transport::Subscriber subscriber_;
+
+  ros::Publisher roi_publisher_;
+
+  image_transport::Publisher roi_img_publisher_;
+
+  bool roi_started_;
+
+  bool published_image_;
 
   cv::Mat conversion_mat_;
 

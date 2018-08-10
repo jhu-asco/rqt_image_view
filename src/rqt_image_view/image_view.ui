@@ -86,6 +86,16 @@
           </property>
          </widget>
         </item>
+				<item>
+				 <widget class="QCheckBox" name="roi_select_check_box">
+				  <property name="toolTip">
+				   <string>Region of Interest Selector</string>
+				  </property>
+				  <property name="text">
+				   <string/>
+				  </property>
+				 </widget>
+				</item>
         <item>
          <widget class="QDoubleSpinBox" name="max_range_double_spin_box">
           <property name="toolTip">
